@@ -21,9 +21,9 @@ export default function CircularProgress({ score, size = 120, strokeWidth = 8 })
   }, [targetOffset]);
 
   const getColor = () => {
-    if (percentage >= 80) return 'var(--color-success)';
-    if (percentage >= 60) return 'var(--color-warning)';
-    return 'var(--color-critical)';
+    if (percentage >= 80) return '#22c55e';
+    if (percentage >= 60) return '#f59e0b';
+    return '#ef4444';
   };
 
   const getLabel = () => {
@@ -60,7 +60,7 @@ export default function CircularProgress({ score, size = 120, strokeWidth = 8 })
           {formatConfidence(score)}
         </text>
         <text x="50%" y="62%" textAnchor="middle" dominantBaseline="central"
-          fill="var(--color-text-muted)" fontSize="11">
+          fill="#6b7280" fontSize="11">
           confidence
         </text>
       </svg>
