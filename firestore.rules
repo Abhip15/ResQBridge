@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Emergency reports collection
+    match /emergency_reports/{reportId} {
+      // Allow authenticated users to create reports
+      allow create: if request.auth != null 
+        && request.resource.data.keys().hasAll(['timestamp', 'location', 'severity'])
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.severity in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+      
+      // Allow users to read their own reports
+      allow read: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      
+      // Deny updates and deletes for audit trail
+      allow update, delete: if false;
+    }
+    
+    // Analytics collection (write-only for logging)
+    match /analytics/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+  }
+}

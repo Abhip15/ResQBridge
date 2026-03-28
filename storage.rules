@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Emergency scene photos
+    match /emergency_photos/{userId}/{fileName} {
+      // Allow authenticated users to upload their own photos
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 4 * 1024 * 1024  // 4MB limit
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      
+      // Allow users to read their own photos
+      allow read: if request.auth != null 
+        && request.auth.uid == userId;
+      
+      // Allow users to delete their own photos
+      allow delete: if request.auth != null 
+        && request.auth.uid == userId;
+    }
+  }
+}

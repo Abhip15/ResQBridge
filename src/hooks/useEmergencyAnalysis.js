@@ -77,7 +77,7 @@ export function useEmergencyAnalysis() {
 
       if (response.usedFallback) {
         setResult(response.result);
-        setError('Live analysis unavailable \u2014 showing example response');
+        setError('Live analysis unavailable — showing example response');
         setStatus('fallback');
       } else {
         setResult(response.result);
