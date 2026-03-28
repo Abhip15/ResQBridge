@@ -1,0 +1,12 @@
+# This file controls what gets uploaded to Cloud Build.
+# Unlike .gitignore, we NEED .env in the build context
+# so Vite can bake the API key into the static bundle.
+
+.git
+node_modules
+dist
+.env.local
+*.log
+
+# Explicitly do NOT ignore .env — it's needed at build time
+!.env

@@ -21,9 +21,6 @@ export function useEmergencyAnalysis() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  /** Cache the last successful result so navigating back doesn't re-fetch */
-  const cachedResultRef = useRef(null);
-
   /** AbortController for in-flight requests */
   const abortRef = useRef(null);
 
@@ -31,14 +28,13 @@ export function useEmergencyAnalysis() {
   const lastCallRef = useRef(0);
 
   /**
-   * Abort any in-flight request, clear cache, and reset all state to idle.
+   * Abort any in-flight request and reset all state to idle.
    */
   const reset = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    cachedResultRef.current = null;
     lastCallRef.current = 0;
     setStatus('idle');
     setResult(null);
@@ -46,7 +42,7 @@ export function useEmergencyAnalysis() {
   }, []);
 
   /**
-   * Run the Gemini analysis. Debounced, abortable, and cached.
+   * Run the Gemini analysis. Debounced and abortable.
    * @param {string} transcript
    * @param {File|null} imageFile
    */
@@ -55,14 +51,6 @@ export function useEmergencyAnalysis() {
     const now = Date.now();
     if (now - lastCallRef.current < DEBOUNCE_MS) return;
     lastCallRef.current = now;
-
-    /* ── Return cached result if available ── */
-    if (cachedResultRef.current) {
-      setResult(cachedResultRef.current.result);
-      setStatus(cachedResultRef.current.status);
-      setError(cachedResultRef.current.error);
-      return;
-    }
 
     /* ── Abort any previous in-flight request ── */
     if (abortRef.current) {
@@ -82,36 +70,24 @@ export function useEmergencyAnalysis() {
       if (controller.signal.aborted) return;
 
       if (response.error) {
-        /* Service returned a user-facing error (e.g. image too large) */
         setError(response.error);
         setStatus('error');
-        cachedResultRef.current = null;
         return;
       }
 
       if (response.usedFallback) {
-        const fallbackError =
-          'Live analysis unavailable \u2014 showing example response';
         setResult(response.result);
-        setError(fallbackError);
+        setError('Live analysis unavailable \u2014 showing example response');
         setStatus('fallback');
-        /* Do NOT cache fallback results — allow retry on next submission */
       } else {
         setResult(response.result);
         setError(null);
         setStatus('success');
-        cachedResultRef.current = {
-          result: response.result,
-          status: 'success',
-          error: null,
-        };
       }
     } catch {
       if (controller.signal.aborted) return;
-      const msg = 'Unable to process request. Please try again.';
-      setError(msg);
+      setError('Unable to process request. Please try again.');
       setStatus('error');
-      cachedResultRef.current = null;
     } finally {
       if (abortRef.current === controller) {
         abortRef.current = null;

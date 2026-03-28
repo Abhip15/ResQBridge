@@ -12,12 +12,16 @@ export default function InputScreen({ analyse, status, error, onNavigate }) {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  const prevStatusRef = useRef(status);
 
   const isLoading = status === 'loading';
 
-  /* Navigate to results when analysis completes */
+  /* Navigate to results only when status transitions from 'loading' to a completed state */
   useEffect(() => {
-    if (status === 'success' || status === 'fallback') {
+    const wasLoading = prevStatusRef.current === 'loading';
+    prevStatusRef.current = status;
+
+    if (wasLoading && (status === 'success' || status === 'fallback')) {
       onNavigate();
     }
   }, [status, onNavigate]);
