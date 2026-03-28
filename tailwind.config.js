@@ -22,7 +22,7 @@ export default {
         'accent': '#6366f1',
       },
       fontFamily: {
-        body: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        body: ['Noto Sans', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         data: ['SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'monospace'],
       },
       animation: {

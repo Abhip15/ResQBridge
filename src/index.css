@@ -18,7 +18,7 @@ html {
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: #0a0a0f;
   color: #f0f0f5;
   min-height: 100vh;
@@ -75,7 +75,7 @@ body {
   stroke-linecap: round;
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
-  transition: stroke-dashoffset 1s ease-out;
+  transition: stroke-dashoffset 0.5s ease-out;
 }
 
 /* ── Stagger animation delays ── */
@@ -83,3 +83,33 @@ body {
 .stagger-2 { animation-delay: 0.2s; }
 .stagger-3 { animation-delay: 0.3s; }
 .stagger-4 { animation-delay: 0.4s; }
+
+/* ── Skip to content link for keyboard users ── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #6366f1;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0 0 8px 8px;
+  font-size: 0.875rem;
+  z-index: 100;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ── Respect reduced motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

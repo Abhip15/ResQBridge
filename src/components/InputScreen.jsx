@@ -1,38 +1,55 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { mockTranscript } from '../data/mockResult';
-import { useSimulatedLoading } from '../hooks/useCountdown';
 import { CameraIcon, AlertTriangleIcon, SparklesIcon } from './Icons';
 
 /**
  * InputScreen — State 1 of ResQBridge.
- * Shows emergency report form with transcript input and photo upload.
+ * Pure presentation layer. All business logic lives in useEmergencyAnalysis.
  */
-export default function InputScreen({ onSubmit }) {
+export default function InputScreen({ analyse, status, error, onNavigate }) {
   const [transcript, setTranscript] = useState(mockTranscript);
   const [fileName, setFileName] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
 
-  const handleComplete = useCallback(() => {
-    onSubmit();
-  }, [onSubmit]);
+  const isLoading = status === 'loading';
 
-  const { isLoading, startLoading } = useSimulatedLoading(handleComplete);
+  /* Navigate to results when analysis completes */
+  useEffect(() => {
+    if (status === 'success' || status === 'fallback') {
+      onNavigate();
+    }
+  }, [status, onNavigate]);
 
-  const handleFileChange = (e) => {
+  /* Clean up object URL on unmount or when image changes */
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
       setFileName(file.name);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
-  };
+  }, [imagePreview]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
-    if (!transcript.trim()) return;
-    startLoading();
-  };
+    if (!transcript.trim() || isLoading) return;
+    analyse(transcript, imageFile);
+  }, [transcript, imageFile, isLoading, analyse]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-8">
+    <main
+      className="min-h-screen flex items-center justify-center px-4 py-8"
+      aria-label="Emergency report input"
+    >
       <div className="w-full max-w-lg animate-fade-in">
         {/* Header */}
         <header className="text-center mb-10">
@@ -50,7 +67,7 @@ export default function InputScreen({ onSubmit }) {
         </header>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Emergency report form">
           {/* Transcript input */}
           <div>
             <label
@@ -64,14 +81,21 @@ export default function InputScreen({ onSubmit }) {
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
               rows={5}
+              maxLength={1000}
               className="w-full bg-bg-input border border-border-default rounded-xl px-4 py-3 text-text-primary text-sm leading-relaxed resize-none transition-colors duration-200 focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent/30 placeholder:text-text-muted"
               placeholder="Describe the emergency situation..."
               disabled={isLoading}
-              aria-describedby="transcript-help"
+              aria-describedby="transcript-help transcript-count"
+              aria-required="true"
             />
-            <p id="transcript-help" className="mt-1.5 text-xs text-text-muted">
-              Include location, number of people, injuries, and any hazards
-            </p>
+            <div className="flex justify-between mt-1.5">
+              <p id="transcript-help" className="text-xs text-text-muted">
+                Include location, number of people, injuries, and any hazards
+              </p>
+              <p id="transcript-count" className="text-xs text-text-muted tabular-nums font-data" aria-live="polite">
+                {transcript.length}/1000
+              </p>
+            </div>
           </div>
 
           {/* Photo upload */}
@@ -109,7 +133,29 @@ export default function InputScreen({ onSubmit }) {
               disabled={isLoading}
               aria-label="Upload photo of accident scene"
             />
+            {/* Image preview using createObjectURL */}
+            {imagePreview && (
+              <div className="mt-3 rounded-xl overflow-hidden border border-border-default max-w-[200px]">
+                <img
+                  src={imagePreview}
+                  alt={`Preview of attached scene photo: ${fileName}`}
+                  className="w-full h-auto object-cover max-h-[150px]"
+                />
+              </div>
+            )}
           </div>
+
+          {/* Error message */}
+          {status === 'error' && error && (
+            <div
+              role="alert"
+              aria-atomic="true"
+              className="flex items-center gap-2 px-4 py-3 bg-critical/10 border border-critical/20 rounded-xl text-sm text-critical"
+            >
+              <AlertTriangleIcon size={16} />
+              <span>{error}</span>
+            </div>
+          )}
 
           {/* Submit button */}
           <div className="pt-2">
@@ -117,7 +163,8 @@ export default function InputScreen({ onSubmit }) {
               type="submit"
               disabled={isLoading || !transcript.trim()}
               className="w-full min-h-[52px] bg-critical hover:bg-critical/90 disabled:bg-critical/40 disabled:cursor-not-allowed text-white font-semibold text-base rounded-xl transition-all duration-200 animate-pulse-glow focus-visible:ring-2 focus-visible:ring-critical focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
-              aria-label="Report emergency and send details to Gemini for analysis"
+              aria-label={isLoading ? 'Analysing emergency report — please wait' : 'Report emergency and send details to Gemini for analysis'}
+              aria-disabled={isLoading || !transcript.trim()}
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -141,6 +188,7 @@ export default function InputScreen({ onSubmit }) {
             role="status"
             aria-busy="true"
             aria-live="polite"
+            aria-label="Analysing emergency report"
           >
             <div className="bg-bg-card border border-border-default rounded-xl p-4">
               <div className="flex items-center gap-3 mb-3">
@@ -149,7 +197,12 @@ export default function InputScreen({ onSubmit }) {
                   Gemini is analysing...
                 </span>
               </div>
-              <div className="w-full h-1.5 bg-bg-primary rounded-full overflow-hidden">
+              <div
+                className="w-full h-1.5 bg-bg-primary rounded-full overflow-hidden"
+                role="progressbar"
+                aria-label="Analysis in progress"
+                aria-valuetext="Analysing emergency data"
+              >
                 <div className="h-full rounded-full animate-shimmer-bar w-full" />
               </div>
               <p className="mt-2 text-xs text-text-muted">

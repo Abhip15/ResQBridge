@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { mockResult } from '../data/mockResult';
 import { useCountdown } from '../hooks/useCountdown';
 import { padTime } from '../utils/formatters';
+import { matchHospital } from '../utils/hospitalMatcher';
 import CircularProgress from './CircularProgress';
 import {
   AlertTriangleIcon,
@@ -19,12 +21,18 @@ import {
 
 /**
  * ResultsScreen — State 2 of ResQBridge.
- * Displays the Gemini analysis results with dispatch info,
- * bystander instructions, and confidence score.
+ * Pure presentation. Receives data and status from useEmergencyAnalysis.
  */
-export default function ResultsScreen({ onReset }) {
-  const data = mockResult;
-  const { minutes, seconds } = useCountdown(data.dispatch.eta_minutes);
+export default function ResultsScreen({ result, status, error, onReset }) {
+  const data = result ?? mockResult;
+
+  /* Memoised hospital match — only recomputes when data changes */
+  const hospitalMatch = useMemo(
+    () => matchHospital(data.location, data.incident_type, data.casualties),
+    [data.location, data.incident_type, data.casualties],
+  );
+
+  const { minutes, seconds, isComplete } = useCountdown(data.dispatch.eta_minutes);
 
   return (
     <div
@@ -39,6 +47,7 @@ export default function ResultsScreen({ onReset }) {
             {/* Severity badge */}
             <div
               role="alert"
+              aria-atomic="true"
               className="inline-flex items-center gap-2 px-4 py-2 bg-critical/15 border border-critical/30 rounded-full animate-pulse-critical"
             >
               <AlertTriangleIcon className="text-critical" size={18} />
@@ -54,6 +63,20 @@ export default function ResultsScreen({ onReset }) {
           </div>
           <div className="h-px bg-gradient-to-r from-critical/40 via-border-default to-transparent" />
         </header>
+
+        {/* ── Fallback indicator ── */}
+        {status === 'fallback' && (
+          <div
+            role="alert"
+            aria-atomic="true"
+            className="animate-fade-in-up stagger-1 opacity-0 flex items-center gap-2 px-4 py-2.5 bg-warning/10 border border-warning/20 rounded-xl text-xs text-warning"
+          >
+            <AlertTriangleIcon size={14} />
+            <span>
+              ⚠ {error || 'Showing example data \u2014 live analysis temporarily unavailable'}
+            </span>
+          </div>
+        )}
 
         {/* ── Main grid: Incident + Dispatch ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -150,6 +173,9 @@ export default function ResultsScreen({ onReset }) {
                   <p className="text-sm font-medium text-text-primary font-data">
                     {data.dispatch.hospital}
                   </p>
+                  <p className="text-xs text-text-muted mt-0.5 font-data">
+                    Matched: {hospitalMatch.hospital_name} ({hospitalMatch.eta_minutes} min)
+                  </p>
                 </div>
               </div>
 
@@ -162,13 +188,24 @@ export default function ResultsScreen({ onReset }) {
                   <p className="text-xs text-text-muted uppercase tracking-wide mb-0.5">
                     ETA
                   </p>
-                  <p
-                    className="text-2xl font-bold text-warning font-data tabular-nums"
-                    aria-label={`Estimated arrival in ${minutes} minutes and ${seconds} seconds`}
-                    aria-live="off"
-                  >
-                    {padTime(minutes)}:{padTime(seconds)}
-                  </p>
+                  {isComplete ? (
+                    <p
+                      className="text-2xl font-bold text-success font-data"
+                      role="status"
+                      aria-label="Ambulance has arrived"
+                    >
+                      <CheckCircleIcon className="inline-block mr-1 align-text-bottom text-success" size={20} />
+                      Arrived
+                    </p>
+                  ) : (
+                    <p
+                      className="text-2xl font-bold text-warning font-data tabular-nums"
+                      aria-label={`Estimated arrival in ${minutes} minutes and ${seconds} seconds`}
+                      aria-live="off"
+                    >
+                      {padTime(minutes)}:{padTime(seconds)}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -207,9 +244,9 @@ export default function ResultsScreen({ onReset }) {
               </h2>
             </div>
 
-            <ol className="space-y-3" role="list">
+            <ol className="space-y-3" role="list" aria-label="Step-by-step bystander instructions">
               {data.bystander_instructions.map((instruction, index) => (
-                <li key={index} className="flex items-start gap-3">
+                <li key={index} role="listitem" className="flex items-start gap-3">
                   <span
                     className="flex-shrink-0 w-7 h-7 rounded-full bg-warning/15 text-warning text-xs font-bold flex items-center justify-center font-data border border-warning/20"
                     aria-hidden="true"
@@ -224,7 +261,11 @@ export default function ResultsScreen({ onReset }) {
             </ol>
 
             {/* Safety reminder */}
-            <div className="mt-5 flex items-center gap-2 px-3 py-2 bg-success/5 border border-success/20 rounded-lg">
+            <div
+              className="mt-5 flex items-center gap-2 px-3 py-2 bg-success/5 border border-success/20 rounded-lg"
+              role="note"
+              aria-label="Safety reminder"
+            >
               <ShieldCheckIcon className="text-success flex-shrink-0" size={16} />
               <p className="text-xs text-success">
                 Your safety comes first — do not put yourself at risk
@@ -255,7 +296,7 @@ export default function ResultsScreen({ onReset }) {
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex items-center gap-2 px-6 py-3 min-h-[48px] bg-bg-card border border-border-default rounded-xl text-sm font-medium text-text-secondary hover:bg-bg-card-hover hover:border-border-focus hover:text-text-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
+            className="inline-flex items-center gap-2 px-6 py-3 min-h-[48px] min-w-[48px] bg-bg-card border border-border-default rounded-xl text-sm font-medium text-text-secondary hover:bg-bg-card-hover hover:border-border-focus hover:text-text-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
             aria-label="Report another emergency — return to input screen"
           >
             <RotateCcwIcon size={16} />
